@@ -8,7 +8,10 @@ defmodule Wadm.Deployments.LatticeMonitor do
   def start_link(opts) do
     case GenServer.start_link(__MODULE__, opts, name: via_tuple(opts.lattice_prefix)) do
       {:error, {:already_started, pid}} ->
-        Logger.debug("Already running lattice monitor at #{inspect(pid)}")
+        Logger.debug(
+          "#{__ENV__.file}:#{__ENV__.line} Already running lattice monitor at #{inspect(pid)}"
+        )
+
         :ignore
 
       other ->
@@ -18,7 +21,10 @@ defmodule Wadm.Deployments.LatticeMonitor do
 
   @impl true
   def init(opts) do
-    Logger.debug("Starting lattice monitor for '#{opts.lattice_prefix}'")
+    Logger.debug(
+      "#{__ENV__.file}:#{__ENV__.line} Starting lattice monitor for '#{opts.lattice_prefix}'"
+    )
+
     # Config NATS subscriber
     cs_settings = %{
       connection_name: :gnats_connection_supervisor,
@@ -30,7 +36,10 @@ defmodule Wadm.Deployments.LatticeMonitor do
       ]
     }
 
-    Logger.debug("Starting NATS subscriber for lattice '#{opts.lattice_prefix}'")
+    Logger.debug(
+      "#{__ENV__.file}:#{__ENV__.line} Starting NATS subscriber for lattice '#{opts.lattice_prefix}'"
+    )
+
     {:ok, _super} = Gnat.ConsumerSupervisor.start_link(cs_settings, [])
   end
 end

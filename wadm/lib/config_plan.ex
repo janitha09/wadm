@@ -4,14 +4,14 @@ defmodule Wadm.ConfigPlan do
 
   config :nats,
          env([
-           {:host, "NATS_HOST", default: '127.0.0.1'},
+           {:host, "NATS_HOST", default: '172.18.0.1'},
            {:port, "NATS_PORT", default: 4222},
            {:backoff_period, "NATS_BACKOFF_PERIOD", default: 4_000}
          ])
 
   config :redis,
          env([
-           {:host, "REDIS_HOST", default: "localhost"}
+           {:host, "REDIS_HOST", default: "172.18.0.1"}
          ])
 
   config :lattice,

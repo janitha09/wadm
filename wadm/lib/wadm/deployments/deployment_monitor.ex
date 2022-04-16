@@ -17,7 +17,7 @@ defmodule Wadm.Deployments.DeploymentMonitor do
   require Logger
   alias LatticeObserver.Observed.Lattice
 
-  @decay_timer_ms 39_000
+  @decay_timer_ms 1_000
 
   defmodule State do
     defstruct [:lattice, :spec, :prefix, :key]
@@ -25,8 +25,12 @@ defmodule Wadm.Deployments.DeploymentMonitor do
 
   @spec start_link(Map.t()) :: GenServer.on_start()
   def start_link(%{app_spec: _app_spec, lattice_prefix: _prefix, key: key} = opts) do
+    Logger.debug("#{__ENV__.file}:#{__ENV__.line} #{inspect(opts)}")
+    Logger.debug("#{__ENV__.file}:#{__ENV__.line} #{inspect(via_tuple(key))}")
+
     case GenServer.start_link(__MODULE__, opts, name: via_tuple(key)) do
       {:ok, pid} ->
+        Logger.debug("#{__ENV__.file}:#{__ENV__.line} #{inspect(pid)}")
         {:ok, pid}
 
       {:error, {:already_started, pid}} ->
@@ -34,6 +38,7 @@ defmodule Wadm.Deployments.DeploymentMonitor do
         :ignore
 
       other ->
+        Logger.debug("#{__ENV__.file}:#{__ENV__.line} #{inspect(other)}")
         other
     end
   end
@@ -41,7 +46,7 @@ defmodule Wadm.Deployments.DeploymentMonitor do
   @impl true
   def init(opts) do
     Logger.debug(
-      "Starting Deployment Monitor for deployment #{opts.app_spec.name} v#{opts.app_spec.version}"
+      "#{__ENV__.file}:#{__ENV__.line} Starting Deployment Monitor for deployment #{opts.app_spec.name} v#{opts.app_spec.version}"
     )
 
     Process.send_after(self(), :decay_lattice, @decay_timer_ms)
@@ -85,6 +90,8 @@ defmodule Wadm.Deployments.DeploymentMonitor do
       |> Lattice.apply_event(
         LatticeObserver.CloudEvent.new_synthetic(%{}, "decay_ticked", "none")
       )
+
+    Logger.debug("#{__ENV__.file}:#{__ENV__.line} #{inspect(lattice)}")
 
     if lattice != state.lattice do
       Wadm.Observer.Cache.write_lattice(lattice)
@@ -133,16 +140,20 @@ defmodule Wadm.Deployments.DeploymentMonitor do
     }
 
     # Init (or reuse) deployment monitor
-    Horde.DynamicSupervisor.start_child(
-      Wadm.HordeSupervisor,
-      {Wadm.Deployments.DeploymentMonitor, opts}
-    )
+    {:ok, dm_pid} =
+      Horde.DynamicSupervisor.start_child(
+        Wadm.HordeSupervisor,
+        {Wadm.Deployments.DeploymentMonitor, opts}
+      )
 
     # Init (or reuse) lattice monitor
-    Horde.DynamicSupervisor.start_child(
-      Wadm.HordeSupervisor,
-      {Wadm.Deployments.LatticeMonitor, opts}
-    )
+    {:ok, lm_pid} =
+      Horde.DynamicSupervisor.start_child(
+        Wadm.HordeSupervisor,
+        {Wadm.Deployments.LatticeMonitor, opts}
+      )
+
+    {dm_pid, lm_pid}
   end
 
   defp child_key(spec_name, version, prefix) do
